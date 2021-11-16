@@ -11,13 +11,7 @@ import (
 )
 
 var (
-	metricRequestTotal    = "gin_request_total"
-	metricRequestUVTotal  = "gin_request_uv_total"
-	metricURIRequestTotal = "gin_uri_request_total"
-	metricRequestBody     = "gin_request_body_total"
-	metricResponseBody    = "gin_response_body_total"
-	metricRequestDuration = "gin_request_duration"
-	metricSlowRequest     = "gin_slow_request_total"
+	metricURIRequestTotal = "gin_url_request_total"
 
 	bloomFilter *bloom.BloomFilter
 )
@@ -52,23 +46,10 @@ func (m *Monitor) Expose(r gin.IRoutes) {
 // initGinMetrics used to init gin metrics
 func (m *Monitor) initGinMetrics() {
 	bloomFilter = bloom.NewBloomFilter()
-
-	_ = monitor.AddMetric(&Metric{
-		Type:        Counter,
-		Name:        metricRequestTotal,
-		Description: "all the server received request num.",
-		Labels:      nil,
-	})
-	_ = monitor.AddMetric(&Metric{
-		Type:        Counter,
-		Name:        metricRequestUVTotal,
-		Description: "all the server received ip num.",
-		Labels:      nil,
-	})
 	_ = monitor.AddMetric(&Metric{
 		Type:        Counter,
 		Name:        metricURIRequestTotal,
-		Description: "all the server received request num with every uri.",
+		Description: "All request received with their query parameters",
 		Labels:      []string{"url", "method", "code"},
 	})
 }
@@ -91,15 +72,6 @@ func (m *Monitor) monitorInterceptor(ctx *gin.Context) {
 func (m *Monitor) ginMetricHandle(ctx *gin.Context, start time.Time) {
 	r := ctx.Request
 	w := ctx.Writer
-
-	// set request total
-	_ = m.GetMetric(metricRequestTotal).Inc(nil)
-
-	// set uv
-	if clientIP := ctx.ClientIP(); !bloomFilter.Contains(clientIP) {
-		bloomFilter.Add(clientIP)
-		_ = m.GetMetric(metricRequestUVTotal).Inc(nil)
-	}
 
 	// set uri request total
 	_ = m.GetMetric(metricURIRequestTotal).Inc([]string{ctx.Request.URL.String(), r.Method, strconv.Itoa(w.Status())})
